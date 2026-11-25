@@ -135,6 +135,11 @@ create policy "Users can delete their own listings"
   on public.items for delete to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Secretariat can delete any listing" on public.items;
+create policy "Secretariat can delete any listing"
+  on public.items for delete to authenticated
+  using (public.is_secretary());
+
 drop policy if exists "Users can view their own role" on public.user_roles;
 create policy "Users can view their own role"
   on public.user_roles for select to authenticated

@@ -138,6 +138,12 @@ export async function setItemStatus(itemId: string, status: Exclude<ItemStatus, 
   if (error) throw new Error(`Não foi possível atualizar o estado do item (${error.code}): ${error.message}`);
 }
 
+export async function deleteItem(itemId: string): Promise<void> {
+  if (!supabase) throw new Error("O Supabase não está configurado.");
+  const { error } = await supabase.from("items").delete().eq("id", itemId);
+  if (error) throw new Error(`Não foi possível excluir o item (${error.code}): ${error.message}`);
+}
+
 export async function createItem(
   userId: string,
   input: { type: ItemKind; title: string; description: string; photoPath: string | null },
