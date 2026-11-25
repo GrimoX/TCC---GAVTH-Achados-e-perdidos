@@ -7,8 +7,8 @@ import {
   fetchInterests,
   fetchItems,
   fetchUserRole,
-  deleteItem,
   getDisplayName,
+  softDeleteItem,
   setItemInterest,
   setItemStatus,
   type Item,
@@ -155,7 +155,7 @@ function App() {
     }
   }
 
-  async function updateStatus(item: Item, status: Exclude<ItemStatus, "active">) {
+  async function updateStatus(item: Item, status: Exclude<ItemStatus, "active" | "removed">) {
     setBusyItemId(item.id);
     setError("");
     try {
@@ -171,14 +171,14 @@ function App() {
   }
 
   async function removeItem(item: Item) {
-    if (!window.confirm(`Tem certeza que deseja excluir "${item.title}"? Esta ação não pode ser desfeita.`)) return;
+    if (!window.confirm(`Deseja remover "${item.title}" do mural? O registro será preservado no banco.`)) return;
     setBusyItemId(item.id);
     setError("");
     try {
-      await deleteItem(item.id);
+      await softDeleteItem(item.id);
       setItems((current) => current.filter((entry) => entry.id !== item.id));
       setInterests((current) => current.filter((interest) => interest.itemId !== item.id));
-      setNotice("Item excluído com sucesso.");
+      setNotice("Item removido do mural. O registro foi preservado no histórico.");
       window.setTimeout(() => setNotice(""), 3500);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir o item.");
@@ -309,7 +309,7 @@ function App() {
               {visibleItems.map((item, index) => {
                 const itemInterests = interests.filter((interest) => interest.itemId === item.id);
                 const alreadyInterested = Boolean(user && itemInterests.some((interest) => interest.userId === user.id));
-                const secretaryAction: Exclude<ItemStatus, "active"> | null = item.status === "returned"
+                const secretaryAction: Exclude<ItemStatus, "active" | "removed"> | null = item.status === "returned" || item.status === "removed"
                   ? null
                   : item.type === "lost" && item.status === "active"
                     ? "found"
@@ -359,7 +359,7 @@ function App() {
                             title="Excluir item"
                             className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:underline disabled:opacity-50"
                           >
-                            <Trash2 size={14} /> Excluir
+                            <Trash2 size={14} /> Remover
                           </button>
                         </div>
                       ) : (

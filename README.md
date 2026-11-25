@@ -23,7 +23,7 @@ O frontend usa somente a chave publicável. **Nunca coloque uma chave secreta (`
 ## Perfis de aluno e Secretaria
 
 - Todo usuário autenticado sem registro em `user_roles` é tratado como **Aluno**. Alunos podem ver itens e registrar/remover o próprio interesse enquanto o item está ativo ou foi encontrado, mas ainda não devolvido.
-- A Secretaria vê os nomes exibidos dos alunos interessados (não os e-mails), pode marcar um item perdido como **Encontrado** e depois **Devolvido**, marcar um achado como **Devolvido** e excluir qualquer anúncio.
+- A Secretaria vê os nomes exibidos dos alunos interessados (não os e-mails), pode marcar um item perdido como **Encontrado** e depois **Devolvido**, marcar um achado como **Devolvido** e remover anúncios do mural. A remoção é lógica: o registro permanece com `status = 'removed'`, `removed_at` e `removed_by`, mas não aparece na listagem nem na busca.
 - Atribua o perfil de Secretaria manualmente no SQL Editor, substituindo o e-mail pelo da conta que já existe no Supabase Auth:
 
 ```sql
