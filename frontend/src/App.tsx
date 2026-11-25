@@ -44,6 +44,7 @@ function App() {
   const [roleLoading, setRoleLoading] = useState(false);
   const [interests, setInterests] = useState<ItemInterest[]>([]);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [formKind, setFormKind] = useState<ItemKind | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -173,6 +174,7 @@ function App() {
   async function removeItem(item: Item) {
     if (!window.confirm(`Deseja remover "${item.title}" do mural? O registro será preservado no banco.`)) return;
     setBusyItemId(item.id);
+    setRemovingItemId(item.id);
     setError("");
     try {
       await softDeleteItem(item.id);
@@ -184,6 +186,7 @@ function App() {
       setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir o item.");
     } finally {
       setBusyItemId(null);
+      setRemovingItemId(null);
     }
   }
 
@@ -356,10 +359,11 @@ function App() {
                             disabled={busyItemId === item.id}
                             onClick={() => void removeItem(item)}
                             aria-label={`Excluir ${item.title}`}
+                            aria-busy={removingItemId === item.id}
                             title="Excluir item"
                             className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:underline disabled:opacity-50"
                           >
-                            <Trash2 size={14} /> Remover
+                            <Trash2 size={14} /> {removingItemId === item.id ? "Removendo..." : "Remover"}
                           </button>
                         </div>
                       ) : (
