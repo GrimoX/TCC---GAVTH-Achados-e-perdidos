@@ -2,7 +2,7 @@ import { supabase } from "./supabase";
 import type { User } from "@supabase/supabase-js";
 
 export type ItemKind = "lost" | "found";
-export type ItemStatus = "active" | "found" | "returned";
+export type ItemStatus = "active" | "found" | "returned" | "removed";
 export type UserRole = "student" | "secretary";
 
 export interface Item {
@@ -64,6 +64,7 @@ export async function fetchItems(search: string, type: string): Promise<Item[]> 
   const { data, error } = await client
     .from("items")
     .select("id,type,title,description,photo_path,created_at,status")
+    .neq("status", "removed")
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) throw new Error("Não foi possível carregar os itens. Verifique se o schema foi executado no Supabase.");
@@ -129,7 +130,7 @@ export async function setItemInterest(
   if (result.error) throw new Error(`Não foi possível atualizar seu interesse (${result.error.code}): ${result.error.message}`);
 }
 
-export async function setItemStatus(itemId: string, status: Exclude<ItemStatus, "active">): Promise<void> {
+export async function setItemStatus(itemId: string, status: Exclude<ItemStatus, "active" | "removed">): Promise<void> {
   if (!supabase) throw new Error("O Supabase não está configurado.");
   const { error } = await supabase.rpc("set_item_status", {
     target_item: itemId,
@@ -138,10 +139,12 @@ export async function setItemStatus(itemId: string, status: Exclude<ItemStatus, 
   if (error) throw new Error(`Não foi possível atualizar o estado do item (${error.code}): ${error.message}`);
 }
 
-export async function deleteItem(itemId: string): Promise<void> {
+export async function softDeleteItem(itemId: string): Promise<void> {
   if (!supabase) throw new Error("O Supabase não está configurado.");
-  const { error } = await supabase.from("items").delete().eq("id", itemId);
-  if (error) throw new Error(`Não foi possível excluir o item (${error.code}): ${error.message}`);
+  const { error } = await supabase.rpc("remove_item", {
+    target_item: itemId,
+  });
+  if (error) throw new Error(`Não foi possível remover o item do mural (${error.code}): ${error.message}`);
 }
 
 export async function createItem(
