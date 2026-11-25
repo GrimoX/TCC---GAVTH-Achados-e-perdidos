@@ -222,3 +222,5 @@ create policy "Users upload their own item photos"
   );
 
 drop policy if exists "Users view their own item photos" on storage.objects;
+
+notify pgrst, 'reload schema';

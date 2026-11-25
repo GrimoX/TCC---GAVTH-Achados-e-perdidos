@@ -144,6 +144,9 @@ export async function softDeleteItem(itemId: string): Promise<void> {
   const { error } = await supabase.rpc("remove_item", {
     target_item: itemId,
   });
+  if (error?.code === "PGRST202") {
+    throw new Error("A função de remoção não está disponível no Supabase. Execute o schema atualizado e aguarde a atualização da cache.");
+  }
   if (error) throw new Error(`Não foi possível remover o item do mural (${error.code}): ${error.message}`);
 }
 

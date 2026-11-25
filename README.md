@@ -36,11 +36,14 @@ on conflict (user_id) do update set role = excluded.role;
 
 Somente quem tem acesso administrativo ao SQL Editor pode conceder o perfil; usuários não podem promover a si mesmos. Execute novamente o `supabase/schema.sql` atualizado para criar as tabelas/políticas de interesses e perfis e o fluxo de estados.
 
+A remoção de anúncios é lógica: a função `remove_item` marca `status = 'removed'` e preserva o registro. Após aplicar mudanças no schema, o script solicita ao Supabase/PostgREST a atualização da cache de schema.
+
 ## Uso local ou hospedado
 
 - Localmente, `npm run dev` abre o frontend em `http://localhost:5173`. `localhost` é o seu computador; o banco continua sendo o Supabase na nuvem.
 - O site abre na tela de login/cadastro GAVTH; após autenticar, a pessoa é direcionada ao mural.
 - Para hospedar, publique o diretório `frontend` em uma plataforma de sites estáticos e configure as mesmas variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` no ambiente de build.
+- Execute `npm test` para verificar o contrato entre a rotina de remoção, o frontend e o schema; a validação também roda automaticamente em pull requests.
 
 ## Segurança e privacidade
 
