@@ -5,25 +5,22 @@ create table if not exists public.items (
   title text not null check (char_length(title) between 3 and 100),
   description text not null check (char_length(description) between 10 and 1000),
   photo_path text,
-  status text not null default 'active' check (status in ('active', 'found', 'returned')),
+  status text not null default 'active' check (status in ('active', 'found', 'returned', 'removed')),
+  removed_at timestamptz,
+  removed_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
 alter table public.items
   add column if not exists status text not null default 'active';
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid = 'public.items'::regclass
-      and conname = 'items_status_check'
-  ) then
-    alter table public.items
-      add constraint items_status_check check (status in ('active', 'found', 'returned'));
-  end if;
-end
-$$;
+alter table public.items
+  add column if not exists removed_at timestamptz,
+  add column if not exists removed_by uuid references auth.users(id) on delete set null;
+
+alter table public.items drop constraint if exists items_status_check;
+alter table public.items
+  add constraint items_status_check check (status in ('active', 'found', 'returned', 'removed'));
 
 create index if not exists items_created_at_idx on public.items (created_at desc);
 create index if not exists items_type_idx on public.items (type);
@@ -67,6 +64,38 @@ $$;
 
 revoke all on function public.is_secretary() from public;
 grant execute on function public.is_secretary() to authenticated;
+
+create or replace function public.remove_item(target_item uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  affected_rows integer;
+begin
+  if auth.uid() is null or not public.is_secretary() then
+    raise exception 'Somente a Secretaria pode remover itens.'
+      using errcode = '42501';
+  end if;
+
+  update public.items
+  set status = 'removed',
+      removed_at = now(),
+      removed_by = auth.uid()
+  where id = target_item
+    and status <> 'removed';
+
+  get diagnostics affected_rows = row_count;
+  if affected_rows = 0 then
+    raise exception 'Item não encontrado ou já removido.'
+      using errcode = 'P0002';
+  end if;
+end;
+$$;
+
+revoke all on function public.remove_item(uuid) from public;
+grant execute on function public.remove_item(uuid) to authenticated;
 
 create or replace function public.set_item_status(target_item uuid, next_status text)
 returns void
@@ -116,12 +145,18 @@ revoke all on function public.set_item_status(uuid, text) from public;
 grant execute on function public.set_item_status(uuid, text) to authenticated;
 
 grant select on public.items to anon, authenticated;
-grant insert, delete on public.items to authenticated;
-revoke update on public.items from anon, authenticated;
+grant insert on public.items to authenticated;
+revoke update, delete on public.items from anon, authenticated;
 
 drop policy if exists "Anyone can view item listings" on public.items;
-create policy "Anyone can view item listings"
-  on public.items for select to anon, authenticated using (true);
+drop policy if exists "Public can view unremoved item listings" on public.items;
+create policy "Public can view unremoved item listings"
+  on public.items for select to anon using (status <> 'removed');
+
+drop policy if exists "Authenticated users can view item listings" on public.items;
+create policy "Authenticated users can view item listings"
+  on public.items for select to authenticated
+  using (status <> 'removed' or public.is_secretary());
 
 drop policy if exists "Users can create their own listings" on public.items;
 create policy "Users can create their own listings"
@@ -131,14 +166,7 @@ create policy "Users can create their own listings"
 drop policy if exists "Users can update their own listings" on public.items;
 
 drop policy if exists "Users can delete their own listings" on public.items;
-create policy "Users can delete their own listings"
-  on public.items for delete to authenticated
-  using (auth.uid() = user_id);
-
 drop policy if exists "Secretariat can delete any listing" on public.items;
-create policy "Secretariat can delete any listing"
-  on public.items for delete to authenticated
-  using (public.is_secretary());
 
 drop policy if exists "Users can view their own role" on public.user_roles;
 create policy "Users can view their own role"
@@ -194,3 +222,5 @@ create policy "Users upload their own item photos"
   );
 
 drop policy if exists "Users view their own item photos" on storage.objects;
+
+notify pgrst, 'reload schema';
