@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { AlertCircle, ArrowRight, Bell, Box, Check, ChevronDown, CircleHelp, HandHeart, LogOut, Mail, MapPin, Plus, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertCircle, ArrowRight, Bell, Box, Check, ChevronDown, CircleHelp, HandHeart, LogOut, Mail, MapPin, Plus, Search, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import LoginPage from "./features/auth/LoginPage";
 import ItemForm from "./features/items/ItemForm";
 import {
   fetchInterests,
   fetchItems,
   fetchUserRole,
+  deleteItem,
   getDisplayName,
   setItemInterest,
   setItemStatus,
@@ -164,6 +165,23 @@ function App() {
       window.setTimeout(() => setNotice(""), 3500);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : "Não foi possível atualizar o estado do item.");
+    } finally {
+      setBusyItemId(null);
+    }
+  }
+
+  async function removeItem(item: Item) {
+    if (!window.confirm(`Tem certeza que deseja excluir "${item.title}"? Esta ação não pode ser desfeita.`)) return;
+    setBusyItemId(item.id);
+    setError("");
+    try {
+      await deleteItem(item.id);
+      setItems((current) => current.filter((entry) => entry.id !== item.id));
+      setInterests((current) => current.filter((interest) => interest.itemId !== item.id));
+      setNotice("Item excluído com sucesso.");
+      window.setTimeout(() => setNotice(""), 3500);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir o item.");
     } finally {
       setBusyItemId(null);
     }
@@ -329,9 +347,21 @@ function App() {
                     <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
                       <span className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}</span>
                       {role === "secretary" ? (
-                        secretaryAction ? <button disabled={busyItemId === item.id} onClick={() => void updateStatus(item, secretaryAction)} className="inline-flex items-center gap-1 text-right text-xs font-bold text-forest hover:underline disabled:opacity-50">
-                          {secretaryAction === "found" ? "Marcar encontrado" : "Marcar devolvido"}
-                        </button> : <span className="text-xs font-semibold text-slate-400">Finalizado</span>
+                        <div className="flex items-center gap-3">
+                          {secretaryAction ? <button disabled={busyItemId === item.id} onClick={() => void updateStatus(item, secretaryAction)} className="inline-flex items-center gap-1 text-right text-xs font-bold text-forest hover:underline disabled:opacity-50">
+                            {secretaryAction === "found" ? "Marcar encontrado" : "Marcar devolvido"}
+                          </button> : <span className="text-xs font-semibold text-slate-400">Finalizado</span>}
+                          <button
+                            type="button"
+                            disabled={busyItemId === item.id}
+                            onClick={() => void removeItem(item)}
+                            aria-label={`Excluir ${item.title}`}
+                            title="Excluir item"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:underline disabled:opacity-50"
+                          >
+                            <Trash2 size={14} /> Excluir
+                          </button>
+                        </div>
                       ) : (
                         <button disabled={busyItemId === item.id || item.status === "returned"} onClick={() => void toggleInterest(item)} className="inline-flex items-center gap-1 text-right text-xs font-bold text-forest hover:underline disabled:cursor-not-allowed disabled:opacity-50">
                           {item.status === "returned" ? "Devolvido" : alreadyInterested ? "Remover interesse" : "Tenho interesse"}
